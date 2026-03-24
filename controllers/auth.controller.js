@@ -54,7 +54,16 @@ const sendTokenResponse = (user, statusCode, res) => {
  */
 exports.register = async (req, res) => {
   try {
-    const { firstName, lastName, email, password, confirmPassword, age } = req.body;
+    const { firstName, lastName, email, password, confirmPassword, age } =
+      req.body;
+
+    if (!firstName || !lastName || !email || !password || !confirmPassword) {
+      return res.status(400).json({ message: "All fields required" });
+    }
+
+    if (password !== confirmPassword) {
+      return res.status(400).json({ message: "Passwords do not match" });
+    }
 
     const userExists = await User.findOne({ email });
     if (userExists) {
@@ -64,14 +73,15 @@ exports.register = async (req, res) => {
     const user = await User.create({
       firstName,
       lastName,
+      name: `${firstName} ${lastName}`,
       email,
       password,
-      confirmPassword,
       age,
     });
 
     sendTokenResponse(user, 201, res);
   } catch (error) {
+    console.error("REGISTER ERROR:", error); // 🔥 MUST
     res.status(500).json({ message: error.message });
   }
 };
@@ -240,10 +250,10 @@ exports.forgotPassword = async (req, res) => {
     }
     */
 
-    res.status(200).json({ 
-      success: true, 
-      message: "Email sent", 
-      resetToken 
+    res.status(200).json({
+      success: true,
+      message: "Email sent",
+      resetToken,
     });
   } catch (error) {
     res.status(500).json({ message: error.message });

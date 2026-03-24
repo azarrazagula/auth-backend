@@ -20,7 +20,7 @@ app.use(
   cors({
     origin: [
       "http://localhost:3000",
-      "http://localhost:3001",
+      "https://singlepagefoodapp.netlify.app",
       "http://localhost:3003",
       process.env.CLIENT_URL,
     ].filter(Boolean),
