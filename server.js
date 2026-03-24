@@ -28,8 +28,6 @@ app.use(
   }),
 );
 
-app.options("*", cors());
-
 // Body Parser
 app.use(express.json({ limit: "10kb" })); // Limit body size for security
 app.use(express.urlencoded({ extended: true }));
