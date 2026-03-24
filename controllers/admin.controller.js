@@ -10,6 +10,10 @@ const {
  * Helper: send token response with httpOnly cookie
  */
 const sendTokenResponse = (user, statusCode, res) => {
+  if (!process.env.JWT_ACCESS_SECRET || !process.env.JWT_REFRESH_SECRET) {
+    throw new Error("JWT secrets are not defined in environment variables");
+  }
+
   const accessToken = generateAccessToken(user._id, user.role);
   const refreshToken = generateRefreshToken(user._id);
 
@@ -113,6 +117,10 @@ exports.adminRefreshToken = async (req, res) => {
 
     if (!refreshToken) {
       return res.status(401).json({ message: "No refresh token provided" });
+    }
+
+    if (!process.env.JWT_REFRESH_SECRET) {
+      throw new Error("JWT_REFRESH_SECRET is undefined");
     }
 
     const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);

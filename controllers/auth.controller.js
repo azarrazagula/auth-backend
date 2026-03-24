@@ -11,6 +11,10 @@ const sendEmail = require("../utils/sendEmail");
  * Helper to send token response (access token + httpOnly refresh cookie)
  */
 const sendTokenResponse = (user, statusCode, res) => {
+  if (!process.env.JWT_ACCESS_SECRET || !process.env.JWT_REFRESH_SECRET) {
+    throw new Error("JWT secrets are not defined in environment variables");
+  }
+
   const accessToken = generateAccessToken(user._id, user.role);
   const refreshToken = generateRefreshToken(user._id);
 
@@ -26,8 +30,8 @@ const sendTokenResponse = (user, statusCode, res) => {
   const options = {
     expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
     httpOnly: true,
-    secure: true,
-    sameSite: "none",
+    secure: process.env.NODE_ENV === "production",
+    sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax",
   };
 
   res
@@ -129,6 +133,10 @@ exports.refreshToken = async (req, res) => {
 
     if (!refreshToken) {
       return res.status(401).json({ message: "No refresh token provided" });
+    }
+
+    if (!process.env.JWT_REFRESH_SECRET) {
+      throw new Error("JWT_REFRESH_SECRET is undefined");
     }
 
     const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
