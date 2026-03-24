@@ -18,12 +18,7 @@ const app = express();
 app.use(helmet()); // Set security HTTP headers
 app.use(
   cors({
-    origin: [
-      "http://localhost:3000",
-      "https://singlepagefoodapp.netlify.app",
-      "http://localhost:3003",
-      process.env.CLIENT_URL,
-    ].filter(Boolean),
+    origin: true,
     credentials: true, // Allow cookies to be sent
   }),
 );
