@@ -31,12 +31,6 @@ const userSchema = new mongoose.Schema(
       minlength: 6,
       select: false, // never returned in queries by default
     },
-    confirmPassword: {
-      type: String,
-      required: [true, "Password is required"],
-      minlength: 6,
-      select: false, // never returned in queries by default
-    },
     age: {
       type: Number,
       required: [false, "Age is not required"],
@@ -75,13 +69,13 @@ const userSchema = new mongoose.Schema(
 // Hash password before saving
 userSchema.pre("save", async function () {
   if (!this.isModified("password")) return;
-  const salt = await bcrypt.genSalt(12);
-  this.password = await bcrypt.hash(this.password, salt);
+
+  this.password = await bcrypt.hash(this.password, 10);
 });
 
 // Compare plain password with hashed
 userSchema.methods.matchPassword = async function (enteredPassword) {
-  return bcrypt.compare(enteredPassword, this.password);
+  return await bcrypt.compare(enteredPassword, this.password);
 };
 
 module.exports = mongoose.model("User", userSchema);

@@ -79,9 +79,13 @@ exports.register = async (req, res) => {
       age,
     });
 
-    sendTokenResponse(user, 201, res);
+    res.status(201).json({
+      success: true,
+      message: "User registered successfully",
+      user,
+    });
   } catch (error) {
-    console.error("REGISTER ERROR:", error); // 🔥 MUST
+    console.error("REGISTER ERROR:", error);
     res.status(500).json({ message: error.message });
   }
 };
