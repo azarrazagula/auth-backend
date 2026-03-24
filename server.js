@@ -15,16 +15,20 @@ connectDB();
 const app = express();
 
 // Security Middlewares
-app.use(helmet()); // Set security HTTP headers
 app.use(
-  cors({
-    origin: true,
-    credentials: true, // Allow cookies to be sent
+  helmet({
+    crossOriginResourcePolicy: false,
   }),
 );
 
-// Apply general rate limiting to all requests
-app.use(generalLimiter);
+app.use(
+  cors({
+    origin: true,
+    credentials: true,
+  }),
+);
+
+app.options("*", cors());
 
 // Body Parser
 app.use(express.json({ limit: "10kb" })); // Limit body size for security
