@@ -12,9 +12,9 @@ const {
   getAllUsers,
   deleteUser,
   deleteAllUsers,
-} = require("../controllers/admin.controller");
+} = require("../../controllers/Admin/admin.controller");
 
-const { protect, authorize } = require("../middleware/auth");
+const { protect, authorize } = require("../../middleware/auth");
 
 // Reusable validation middleware
 const validate = (req, res, next) => {

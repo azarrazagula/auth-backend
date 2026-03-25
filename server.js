@@ -6,7 +6,8 @@ const cookieParser = require("cookie-parser");
 const connectDB = require("./config/db");
 const { generalLimiter } = require("./middleware/rateLimiter");
 const userRoutes = require("./routes/user.routes");
-const adminRoutes = require("./routes/admin.routes");
+const adminRoutes = require("./routes/Admin/admin.routes");
+const foodRoutes = require("./routes/Admin/food.routes");
 const superadminRoutes = require("./routes/superadmin.routes");
 
 // Connect Database
@@ -38,6 +39,7 @@ app.use(cookieParser());
 // Define Routes
 app.use("/api/user", userRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/admin/food", foodRoutes);
 app.use("/api/superadmin", superadminRoutes);
 
 // Health Check Route

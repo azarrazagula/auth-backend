@@ -45,6 +45,8 @@ const sendTokenResponse = (user, statusCode, res) => {
         name: user.name,
         email: user.email,
         age: user.age,
+        dateOfBirth: user.dateOfBirth,
+        phoneNumber: user.phoneNumber,
         role: user.role,
         isVerified: user.isVerified,
       },
@@ -58,7 +60,7 @@ const sendTokenResponse = (user, statusCode, res) => {
  */
 exports.register = async (req, res) => {
   try {
-    const { firstName, lastName, email, password, confirmPassword, age } =
+    const { firstName, lastName, email, password, confirmPassword, age, dateOfBirth, phoneNumber } =
       req.body;
 
     if (!firstName || !lastName || !email || !password || !confirmPassword) {
@@ -74,6 +76,17 @@ exports.register = async (req, res) => {
       return res.status(400).json({ message: "User already exists" });
     }
 
+    // Parse dateOfBirth if provided in DD.MM.YYYY format
+    let parsedDOB = null;
+    if (dateOfBirth) {
+      const parts = dateOfBirth.split(".");
+      if (parts.length === 3) {
+        parsedDOB = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+      } else {
+        parsedDOB = new Date(dateOfBirth);
+      }
+    }
+
     const user = await User.create({
       firstName,
       lastName,
@@ -81,6 +94,8 @@ exports.register = async (req, res) => {
       email,
       password,
       age,
+      dateOfBirth: parsedDOB,
+      phoneNumber,
     });
 
     res.status(201).json({

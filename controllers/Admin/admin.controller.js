@@ -1,10 +1,10 @@
 const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
-const User = require("../models/User");
+const User = require("../../models/User");
 const {
   generateAccessToken,
   generateRefreshToken,
-} = require("../utils/generateToken");
+} = require("../../utils/generateToken");
 
 /**
  * Helper: send token response with httpOnly cookie

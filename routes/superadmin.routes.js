@@ -6,9 +6,12 @@ const {
   deleteAdmin,
   getSystemStats,
   getAllUsersFull,
+  superAdminForgotPassword,
+  superAdminResetPassword,
 } = require("../controllers/superadmin.controller");
-const { adminLogin } = require("../controllers/admin.controller");
+const { adminLogin } = require("../controllers/Admin/admin.controller");
 const { protect, authorize } = require("../middleware/auth");
+const { authLimiter } = require("../middleware/rateLimiter");
 
 /**
  * @desc Public Login for Super Admin
@@ -21,6 +24,23 @@ router.post("/login", adminLogin);
 router.get("/test", (req, res) =>
   res.json({ message: "Superadmin routes are working!" }),
 );
+
+/**
+ * @desc Superadmin request password reset
+ */
+router.post("/forgot-password", authLimiter, superAdminForgotPassword);
+
+/**
+ * @desc Superadmin reset password (missing token handler)
+ */
+router.put(["/reset-password", "/reset-password/"], (req, res) => {
+  res.status(400).json({ message: "Password reset token is required in the URL. Format: /api/superadmin/reset-password/<TOKEN>" });
+});
+
+/**
+ * @desc Superadmin reset password
+ */
+router.put("/reset-password/:token", authLimiter, superAdminResetPassword);
 
 // Protect all routes below - Super Admin only
 router.use(protect);

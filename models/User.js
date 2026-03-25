@@ -38,6 +38,16 @@ const userSchema = new mongoose.Schema(
       min: 18,
       max: 100,
     },
+    dateOfBirth: {
+      type: Date,
+      default: null,
+    },
+    phoneNumber: {
+      type: String,
+      trim: true,
+      default: null,
+      match: [/^\d{10,15}$/, "Please provide a valid phone number"],
+    },
     role: {
       type: String,
       enum: ["user", "admin", "superadmin"],
