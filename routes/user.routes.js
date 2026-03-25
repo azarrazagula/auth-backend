@@ -10,6 +10,7 @@ const {
   forgotPassword,
   resetPassword,
   getMe,
+  updateMe,
 } = require("../controllers/auth.controller");
 
 const { protect } = require("../middleware/auth");
@@ -103,5 +104,10 @@ router.put(
  * @desc Get current user profile
  */
 router.get("/me", protect, getMe);
+
+/**
+ * @desc Update current user profile
+ */
+router.put("/me", protect, updateMe);
 
 module.exports = router;

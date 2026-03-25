@@ -345,6 +345,44 @@ exports.getMe = async (req, res) => {
 };
 
 /**
+ * @desc    Update current logged in user profile
+ * @route   PUT /api/user/me
+ * @access  Private
+ */
+exports.updateMe = async (req, res) => {
+  try {
+    const { firstName, lastName, dateOfBirth, phoneNumber, age } = req.body;
+
+    // Build update object with only allowed fields
+    const updatedFields = {};
+    if (firstName !== undefined) updatedFields.firstName = firstName;
+    if (lastName !== undefined) updatedFields.lastName = lastName;
+    if (age !== undefined) updatedFields.age = age;
+    if (phoneNumber !== undefined) updatedFields.phoneNumber = phoneNumber;
+
+    // Parse dateOfBirth if provided in DD.MM.YYYY format
+    if (dateOfBirth !== undefined) {
+      const parts = String(dateOfBirth).split(".");
+      if (parts.length === 3) {
+        updatedFields.dateOfBirth = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+      } else {
+        updatedFields.dateOfBirth = new Date(dateOfBirth);
+      }
+    }
+
+    const user = await User.findByIdAndUpdate(
+      req.user.id,
+      { $set: updatedFields },
+      { new: true, runValidators: true }
+    );
+
+    res.status(200).json({ success: true, user });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+/**
  * @desc    Get all users (No token required)
  * @route   GET /api/auth/users
  * @access  Public
