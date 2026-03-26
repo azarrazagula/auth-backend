@@ -22,16 +22,31 @@ app.use(
   }),
 );
 
+const allowedOrigins = [
+  process.env.CLIENT_URL,
+  "http://localhost:3000",
+  "http://localhost:3001",
+  "http://localhost:3002",
+];
+
 app.use(
   cors({
-    origin: true,
+    origin: function (origin, callback) {
+      // allow requests with no origin (like mobile apps or curl requests)
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.indexOf(origin) !== -1 || origin.includes("netlify.app")) {
+        callback(null, true);
+      } else {
+        callback(null, true); // For development convenience, we keep it loose if origin: true was there, but let's be slightly more formal
+      }
+    },
     credentials: true,
   }),
 );
 
 // Body Parser
-app.use(express.json({ limit: "10kb" })); // Limit body size for security
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: "10mb" })); // Increased limit for image uploads
+app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
 // Cookie Parser (for refresh tokens)
 app.use(cookieParser());

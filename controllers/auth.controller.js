@@ -131,6 +131,9 @@ exports.login = async (req, res) => {
       return res.status(401).json({ message: "Password is wrong" });
     }
 
+    user.lastLogin = Date.now();
+    await user.save({ validateBeforeSave: false });
+
     sendTokenResponse(user, 200, res);
   } catch (error) {
     res.status(500).json({ message: error.message });

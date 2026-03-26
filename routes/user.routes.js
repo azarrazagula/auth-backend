@@ -32,7 +32,11 @@ router.post(
   "/register",
   authLimiter,
   [
-    check("firstName", "First Name is required").not().isEmpty().trim().escape(),
+    check("firstName", "First Name is required")
+      .not()
+      .isEmpty()
+      .trim()
+      .escape(),
     check("lastName", "Last Name is required").not().isEmpty().trim().escape(),
     check("email", "Please include a valid email").isEmail().normalizeEmail(),
     check(

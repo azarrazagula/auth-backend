@@ -270,7 +270,7 @@ exports.adminResetPassword = async (req, res) => {
  */
 exports.getAllUsers = async (req, res) => {
   try {
-    const users = await User.find({}).select(
+    const users = await User.find({}).sort({ createdAt: -1 }).select(
       "-password -confirmPassword -refreshTokens -resetPasswordToken -resetPasswordExpiry",
     );
     res.status(200).json({ success: true, count: users.length, users });
