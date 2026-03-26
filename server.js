@@ -9,6 +9,8 @@ const userRoutes = require("./routes/user.routes");
 const adminRoutes = require("./routes/Admin/admin.routes");
 const foodRoutes = require("./routes/Admin/food.routes");
 const superadminRoutes = require("./routes/superadmin.routes");
+const userBillingRoutes = require("./routes/userBilling.routes");
+
 
 // Connect Database
 connectDB();
@@ -59,6 +61,7 @@ app.use("/api/user", userRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/admin/food", foodRoutes);
 app.use("/api/superadmin", superadminRoutes);
+app.use("/api/billing", userBillingRoutes);
 
 // Health Check Route
 app.get("/api/health", (req, res) => {

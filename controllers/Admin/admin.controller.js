@@ -1,7 +1,9 @@
 const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
 const User = require("../../models/User");
+const UserBillingDetails = require("../../models/UserBillingDetails");
 const {
+
   generateAccessToken,
   generateRefreshToken,
 } = require("../../utils/generateToken");
@@ -307,5 +309,50 @@ exports.deleteAllUsers = async (req, res) => {
     res.status(200).json({ success: true, message: "All users deleted" });
   } catch (error) {
     res.status(500).json({ message: error.message });
+  }
+};
+
+/**
+ * @desc    Get ALL users billing details
+ * @route   GET /api/admin/billing
+ * @access  Private (Admin)
+ */
+exports.getAllBillingDetails = async (req, res) => {
+  try {
+    const billingDetails = await UserBillingDetails.find({})
+      .populate("user", "firstName lastName email role")
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      count: billingDetails.length,
+      data: billingDetails,
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/**
+ * @desc    Get billing details for a specific user by ID
+ * @route   GET /api/admin/billing/:userId
+ * @access  Private (Admin)
+ */
+exports.getUserBillingById = async (req, res) => {
+  try {
+    const billingDetails = await UserBillingDetails.findOne({
+      user: req.params.userId,
+    }).populate("user", "firstName lastName email role");
+
+    if (!billingDetails) {
+      return res.status(404).json({
+        success: false,
+        message: "No billing details found for this user",
+      });
+    }
+
+    res.status(200).json({ success: true, data: billingDetails });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
   }
 };
