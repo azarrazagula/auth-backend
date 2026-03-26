@@ -26,7 +26,7 @@ exports.getAllAdmins = async (req, res) => {
 exports.createAdmin = async (req, res) => {
   try {
     const { firstName, lastName, email, password, confirmPassword } = req.body;
-    
+
     // Check if user already exists
     let user = await User.findOne({ email });
 
@@ -36,14 +36,16 @@ exports.createAdmin = async (req, res) => {
       await user.save({ validateBeforeSave: false });
       return res.status(200).json({
         success: true,
-        message: `${user.firstName || 'User'} is now an admin`,
+        message: `${user.firstName || "User"} is now an admin`,
         admin: user,
       });
     }
 
     // If user doesn't exist, create a new admin
     if (!password) {
-      return res.status(400).json({ message: "Password is required for new admin creation" });
+      return res
+        .status(400)
+        .json({ message: "Password is required for new admin creation" });
     }
 
     const newAdmin = await User.create({
@@ -53,7 +55,7 @@ exports.createAdmin = async (req, res) => {
       password,
       confirmPassword: confirmPassword || password,
       role: "admin",
-      isVerified: true
+      isVerified: true,
     });
 
     res.status(201).json({
@@ -105,7 +107,9 @@ exports.deleteUserFull = async (req, res) => {
   try {
     const user = await User.findByIdAndDelete(req.params.id);
     if (!user) return res.status(404).json({ message: "User not found" });
-    res.status(200).json({ success: true, message: "User permanently deleted" });
+    res
+      .status(200)
+      .json({ success: true, message: "User permanently deleted" });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -167,12 +171,15 @@ exports.superAdminForgotPassword = async (req, res) => {
     // Enforce generic response to prevent email enumeration
     const genericResponse = {
       success: true,
-      message: "If an account matching that email exists and has Superadmin privileges, a password reset link has been sent.",
+      message:
+        "If an account matching that email exists and has Superadmin privileges, a password reset link has been sent.",
     };
 
     if (!user || user.role !== "superadmin") {
       // Delay to mitigate timing attacks compared to a successful lookup
-      await new Promise(resolve => setTimeout(resolve, Math.random() * 500 + 500));
+      await new Promise((resolve) =>
+        setTimeout(resolve, Math.random() * 500 + 500),
+      );
       return res.status(200).json(genericResponse);
     }
 
@@ -190,7 +197,7 @@ exports.superAdminForgotPassword = async (req, res) => {
 
     // Send email with unhashed token
     const resetUrl = `${process.env.CLIENT_URL}/superadmin/reset-password/${resetToken}`;
-    
+
     const message = `
       <h1>Superadmin Password Reset Request</h1>
       <p>You have requested to reset your Superadmin password.</p>

@@ -1,6 +1,10 @@
 const express = require("express");
 const router = express.Router();
-const { addFoodItem, removeFoodItem, getAllFoodItems } = require("../../controllers/Admin/food.controller");
+const {
+  addFoodItem,
+  removeFoodItem,
+  getAllFoodItems,
+} = require("../../controllers/Admin/food.controller");
 const { protect, authorize } = require("../../middleware/auth");
 
 // Public route to see food

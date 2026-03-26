@@ -34,7 +34,10 @@ app.use(
     origin: function (origin, callback) {
       // allow requests with no origin (like mobile apps or curl requests)
       if (!origin) return callback(null, true);
-      if (allowedOrigins.indexOf(origin) !== -1 || origin.includes("netlify.app")) {
+      if (
+        allowedOrigins.indexOf(origin) !== -1 ||
+        origin.includes("netlify.app")
+      ) {
         callback(null, true);
       } else {
         callback(null, true); // For development convenience, we keep it loose if origin: true was there, but let's be slightly more formal

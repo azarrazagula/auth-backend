@@ -34,7 +34,12 @@ router.post("/forgot-password", authLimiter, superAdminForgotPassword);
  * @desc Superadmin reset password (missing token handler)
  */
 router.put(["/reset-password", "/reset-password/"], (req, res) => {
-  res.status(400).json({ message: "Password reset token is required in the URL. Format: /api/superadmin/reset-password/<TOKEN>" });
+  res
+    .status(400)
+    .json({
+      message:
+        "Password reset token is required in the URL. Format: /api/superadmin/reset-password/<TOKEN>",
+    });
 });
 
 /**
