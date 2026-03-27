@@ -39,6 +39,8 @@ const sendTokenResponse = (user, statusCode, res) => {
         firstName: user.firstName,
         lastName: user.lastName,
         email: user.email,
+        phoneNumber: user.phoneNumber,
+        age: user.age,
         role: user.role,
       },
     });
@@ -68,6 +70,10 @@ exports.adminLogin = async (req, res) => {
     if (!(await user.matchPassword(password))) {
       return res.status(401).json({ message: "Invalid credentials" });
     }
+
+    // Update last login
+    user.lastLogin = Date.now();
+    await user.save({ validateBeforeSave: false });
 
     sendTokenResponse(user, 200, res);
   } catch (error) {

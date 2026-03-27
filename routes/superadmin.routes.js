@@ -8,6 +8,7 @@ const {
   getAllUsersFull,
   superAdminForgotPassword,
   superAdminResetPassword,
+  superAdminDirectResetPassword,
 } = require("../controllers/superadmin.controller");
 const { adminLogin } = require("../controllers/Admin/admin.controller");
 const { protect, authorize } = require("../middleware/auth");
@@ -33,14 +34,7 @@ router.post("/forgot-password", authLimiter, superAdminForgotPassword);
 /**
  * @desc Superadmin reset password (missing token handler)
  */
-router.put(["/reset-password", "/reset-password/"], (req, res) => {
-  res
-    .status(400)
-    .json({
-      message:
-        "Password reset token is required in the URL. Format: /api/superadmin/reset-password/<TOKEN>",
-    });
-});
+router.put(["/reset-password", "/reset-password/"], authLimiter, superAdminDirectResetPassword);
 
 /**
  * @desc Superadmin reset password

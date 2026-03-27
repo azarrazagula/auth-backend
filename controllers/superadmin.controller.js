@@ -25,14 +25,37 @@ exports.getAllAdmins = async (req, res) => {
  */
 exports.createAdmin = async (req, res) => {
   try {
-    const { firstName, lastName, email, password, confirmPassword } = req.body;
+    const {
+      firstName,
+      lastName,
+      email,
+      password,
+      confirmPassword,
+      phoneNumber,
+      age,
+      dateOfBirth,
+    } = req.body;
 
     // Check if user already exists
     let user = await User.findOne({ email });
 
+    // Helper to parse DOB (handles DD.MM.YYYY)
+    let parsedDOB = null;
+    if (dateOfBirth) {
+      const parts = String(dateOfBirth).split(".");
+      if (parts.length === 3) {
+        parsedDOB = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+      } else {
+        parsedDOB = new Date(dateOfBirth);
+      }
+    }
+
     if (user) {
-      // If user exists, promote to admin
+      // If user exists, promote to admin and update additional details
       user.role = "admin";
+      if (phoneNumber) user.phoneNumber = phoneNumber;
+      if (age) user.age = age;
+      if (parsedDOB) user.dateOfBirth = parsedDOB;
       await user.save({ validateBeforeSave: false });
       return res.status(200).json({
         success: true,
@@ -54,6 +77,9 @@ exports.createAdmin = async (req, res) => {
       email,
       password,
       confirmPassword: confirmPassword || password,
+      phoneNumber,
+      age,
+      dateOfBirth: parsedDOB,
       role: "admin",
       isVerified: true,
     });
@@ -123,17 +149,25 @@ exports.deleteUserFull = async (req, res) => {
 exports.getSystemStats = async (req, res) => {
   try {
     const totalUsers = await User.countDocuments({});
-    const adminCount = await User.countDocuments({ role: "admin" });
-    const superAdminCount = await User.countDocuments({ role: "superadmin" });
-    const regularUserCount = await User.countDocuments({ role: "user" });
+    const totalAdmins = await User.countDocuments({ role: "admin" });
+    const verifiedUsers = await User.countDocuments({ isVerified: true });
+
+    // Calculate login percentage (users who have at least one recorded login)
+    const loggedInCount = await User.countDocuments({
+      lastLogin: { $ne: null },
+    });
+    const loginPercentage =
+      totalUsers > 0
+        ? `${Math.round((loggedInCount / totalUsers) * 100)}%`
+        : "0%";
 
     res.status(200).json({
       success: true,
       stats: {
         totalUsers,
-        adminCount,
-        superAdminCount,
-        regularUserCount,
+        totalAdmins,
+        verifiedUsers,
+        loginPercentage,
       },
     });
   } catch (error) {
@@ -254,6 +288,41 @@ exports.superAdminResetPassword = async (req, res) => {
     user.resetPasswordExpiry = undefined;
 
     // Invalidate all existing refresh tokens for security
+    user.refreshTokens = [];
+
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Superadmin password updated successfully. Please log in.",
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+/**
+ * @desc    Superadmin direct reset password (Tokenless)
+ * @route   PUT /api/superadmin/reset-password/
+ * @access  Public
+ */
+exports.superAdminDirectResetPassword = async (req, res) => {
+  try {
+    const { password } = req.body;
+
+    const user = await User.findOne({ role: "superadmin" }).select(
+      "+refreshTokens",
+    );
+
+    if (!user) {
+      return res.status(404).json({ message: "Superadmin not found" });
+    }
+
+    user.password = password;
+    user.confirmPassword = password;
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpiry = undefined;
+
     user.refreshTokens = [];
 
     await user.save();
