@@ -111,13 +111,11 @@ exports.deleteAdmin = async (req, res) => {
       return res.status(400).json({ message: "User is not an admin" });
     }
 
-    // You can choose to delete or just demote. Let's demote to 'user' for safety.
-    user.role = "user";
-    await user.save({ validateBeforeSave: false });
+    await User.findByIdAndDelete(req.params.id);
 
     res.status(200).json({
       success: true,
-      message: `${user.firstName} ${user.lastName} has been demoted to user`,
+      message: `${user.firstName || "Admin"} has been permanently deleted from the system`,
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -148,9 +146,9 @@ exports.deleteUserFull = async (req, res) => {
  */
 exports.getSystemStats = async (req, res) => {
   try {
-    const totalUsers = await User.countDocuments({});
+    const totalUsers = await User.countDocuments({ role: "user" });
     const totalAdmins = await User.countDocuments({ role: "admin" });
-    const verifiedUsers = await User.countDocuments({ isVerified: true });
+    const verifiedUsers = await User.countDocuments({ role: "user", isVerified: true });
 
     // Calculate login percentage (users who have at least one recorded login)
     const loggedInCount = await User.countDocuments({
@@ -182,7 +180,7 @@ exports.getSystemStats = async (req, res) => {
  */
 exports.getAllUsersFull = async (req, res) => {
   try {
-    const users = await User.find({}).select(
+    const users = await User.find({ role: "user" }).select(
       "-password -confirmPassword -refreshTokens",
     );
     res.status(200).json({ success: true, count: users.length, users });

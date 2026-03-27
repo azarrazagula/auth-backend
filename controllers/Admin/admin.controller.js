@@ -273,7 +273,7 @@ exports.adminResetPassword = async (req, res) => {
  */
 exports.getAllUsers = async (req, res) => {
   try {
-    const users = await User.find({}).sort({ createdAt: -1 }).select(
+    const users = await User.find({ role: "user" }).sort({ createdAt: -1 }).select(
       "-password -confirmPassword -refreshTokens -resetPasswordToken -resetPasswordExpiry",
     );
     res.status(200).json({ success: true, count: users.length, users });
@@ -289,8 +289,20 @@ exports.getAllUsers = async (req, res) => {
  */
 exports.deleteUser = async (req, res) => {
   try {
-    const user = await User.findByIdAndDelete(req.params.id);
-    if (!user) return res.status(404).json({ message: "User not found" });
+    const user = await User.findById(req.params.id);
+    
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Protection: Prevent deleting admins or superadmins through this route
+    if (user.role !== "user") {
+      return res.status(403).json({ 
+        message: "Access denied. Cannot delete Administrators from the standard user route." 
+      });
+    }
+
+    await User.findByIdAndDelete(req.params.id);
     res
       .status(200)
       .json({ success: true, message: "User deleted successfully" });
