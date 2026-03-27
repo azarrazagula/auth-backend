@@ -70,6 +70,15 @@ const userSchema = new mongoose.Schema(
       type: Date,
       select: false,
     },
+    // OTP auth
+    otp: {
+      type: String,
+      select: false,
+    },
+    otpExpiry: {
+      type: Date,
+      select: false,
+    },
     // Stored refresh tokens (token rotation)
     refreshTokens: {
       type: [String],

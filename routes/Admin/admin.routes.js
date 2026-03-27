@@ -57,21 +57,23 @@ router.post("/refresh-token", adminRefreshToken);
 router.get("/me", adminProtect, getAdminMe);
 
 /**
- * @desc Admin forgot password
+ * @desc Admin forgot password (OTP via phone number)
  */
 router.post(
   "/forgot-password",
-  [check("email", "Please include a valid email").isEmail().normalizeEmail()],
+  [check("phoneNumber", "Please include a valid phone number").not().isEmpty()],
   validate,
   adminForgotPassword,
 );
 
 /**
- * @desc Admin reset password
+ * @desc Admin reset password via OTP
  */
 router.put(
-  "/reset-password/:resettoken",
+  "/reset-password",
   [
+    check("phoneNumber", "Please include a valid phone number").not().isEmpty(),
+    check("otp", "Please include a valid 6-digit OTP").isLength({ min: 6, max: 6 }),
     check(
       "password",
       "Please enter a password with 6 or more characters",

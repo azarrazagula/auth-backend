@@ -3,10 +3,10 @@ const jwt = require("jsonwebtoken");
 const User = require("../../models/User");
 const UserBillingDetails = require("../../models/UserBillingDetails");
 const {
-
   generateAccessToken,
   generateRefreshToken,
 } = require("../../utils/generateToken");
+const generateOtp = require("../../utils/generateOtp");
 
 /**
  * Helper: send token response with httpOnly cookie
@@ -181,37 +181,36 @@ exports.getAdminMe = async (req, res) => {
  */
 exports.adminForgotPassword = async (req, res) => {
   try {
-    const { email } = req.body;
+    const { phoneNumber } = req.body;
 
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ phoneNumber });
 
     if (!user) {
       return res
         .status(404)
-        .json({ message: "There is no admin with that email" });
+        .json({ message: "There is no admin with that phone number" });
     }
 
     if (user.role !== "admin" && user.role !== "superadmin") {
       return res.status(403).json({ message: "Access denied. Admins only." });
     }
 
-    // Generate reset token
-    const resetToken = crypto.randomBytes(20).toString("hex");
+    // Generate 6-digit OTP
+    const { otp, otpExpiry } = generateOtp();
 
-    // Hash token and set to resetPasswordToken field
-    user.resetPasswordToken = crypto
-      .createHash("sha256")
-      .update(resetToken)
-      .digest("hex");
-
-    user.resetPasswordExpiry = Date.now() + 10 * 60 * 1000; // 10 minutes
+    // Save to user (don't validate before save)
+    user.otp = otp;
+    user.otpExpiry = otpExpiry;
     await user.save({ validateBeforeSave: false });
 
-    // In local development, we return the token directly in the response
+    // In a real application, you'd send this OTP via SMS here.
+    console.log(`[OTP GENERATED] Admin OTP for ${phoneNumber} is: ${otp}`);
+
     res.status(200).json({
       success: true,
-      message: "Password reset token generated",
-      resetToken,
+      message: "OTP sent to your phone number",
+      // Dev mode: returning OTP directly to test it. Remove in production!
+      otp, 
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -219,37 +218,33 @@ exports.adminForgotPassword = async (req, res) => {
 };
 
 /**
- * @desc    Admin reset password
- * @route   PUT /api/admin/reset-password/:resettoken
+ * @desc    Admin reset password via OTP
+ * @route   PUT /api/admin/reset-password
  * @access  Public
  */
 exports.adminResetPassword = async (req, res) => {
   try {
-    const { password } = req.body;
-
-    // Get hashed token
-    const resetPasswordToken = crypto
-      .createHash("sha256")
-      .update(req.params.resettoken)
-      .digest("hex");
+    const { phoneNumber, otp, password } = req.body;
 
     const user = await User.findOne({
-      resetPasswordToken,
-      resetPasswordExpiry: { $gt: Date.now() },
-    });
+      phoneNumber,
+      otp,
+      otpExpiry: { $gt: Date.now() },
+    }).select("+otp +otpExpiry +refreshTokens");
 
     if (!user) {
-      return res.status(400).json({ message: "Invalid or expired token" });
+      return res.status(400).json({ message: "Invalid or expired OTP" });
     }
 
     if (user.role !== "admin" && user.role !== "superadmin") {
       return res.status(403).json({ message: "Access denied. Admins only." });
     }
 
+    // Reset password and clear OTP fields
     user.password = password;
     user.confirmPassword = password;
-    user.resetPasswordToken = undefined;
-    user.resetPasswordExpiry = undefined;
+    user.otp = undefined;
+    user.otpExpiry = undefined;
 
     // Invalidate all existing refresh tokens
     user.refreshTokens = [];
