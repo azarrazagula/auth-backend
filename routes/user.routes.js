@@ -9,6 +9,8 @@ const {
   logout,
   forgotPassword,
   resetPassword,
+  forgotPasswordOTP,
+  resetPasswordOTP,
   getMe,
   updateMe,
 } = require("../controllers/auth.controller");
@@ -102,6 +104,34 @@ router.put(
   ],
   validate,
   resetPassword,
+);
+
+/**
+ * @desc Forgot password (Reset Code)
+ */
+router.post(
+  "/forgot-password-code",
+  authLimiter,
+  [check("email", "Please include a valid email").isEmail().normalizeEmail()],
+  validate,
+  forgotPasswordOTP,
+);
+
+/**
+ * @desc Reset password (Reset Code)
+ */
+router.put(
+  "/reset-password-code",
+  [
+    check("email", "Please include a valid email").isEmail().normalizeEmail(),
+    check("otp", "Reset code is required").not().isEmpty(),
+    check(
+      "password",
+      "Please enter a password with 6 or more characters",
+    ).isLength({ min: 6 }),
+  ],
+  validate,
+  resetPasswordOTP,
 );
 
 /**

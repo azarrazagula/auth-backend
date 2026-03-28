@@ -6,6 +6,7 @@ const {
   generateRefreshToken,
 } = require("../utils/generateToken");
 const sendEmail = require("../utils/sendEmail");
+const generateOtp = require("../utils/generateOtp");
 
 /**
  * Helper to send token response (access token + httpOnly refresh cookie)
@@ -320,6 +321,82 @@ exports.resetPassword = async (req, res) => {
     user.resetPasswordExpiry = undefined;
 
     // Invalidate all existing refresh tokens so they need to log in again on all devices
+    user.refreshTokens = [];
+
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Password updated successfully. Please log in.",
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+/**
+ * @desc    Forgot password (OTP Code)
+ * @route   POST /api/auth/forgot-password-code
+ * @access  Public
+ */
+exports.forgotPasswordOTP = async (req, res) => {
+  try {
+    const { email } = req.body;
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return res
+        .status(404)
+        .json({ message: "There is no user with that email" });
+    }
+
+    // Generate 6-digit OTP
+    const { otp, otpExpiry } = generateOtp();
+
+    // Save to user (don't validate before save)
+    user.otp = otp;
+    user.otpExpiry = otpExpiry;
+    await user.save({ validateBeforeSave: false });
+
+    // In dev mode, return OTP. In prod, send via email.
+    console.log(`[OTP GENERATED] User OTP for ${email} is: ${otp}`);
+
+    res.status(200).json({
+      success: true,
+      message: "Reset code sent to your email",
+      otp, // Dev only
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+/**
+ * @desc    Reset password via OTP Code
+ * @route   PUT /api/auth/reset-password-code
+ * @access  Public
+ */
+exports.resetPasswordOTP = async (req, res) => {
+  try {
+    const { email, otp, password } = req.body;
+
+    const user = await User.findOne({
+      email,
+      otp,
+      otpExpiry: { $gt: Date.now() },
+    }).select("+otp +otpExpiry +refreshTokens");
+
+    if (!user) {
+      return res.status(400).json({ message: "Invalid or expired reset code" });
+    }
+
+    // Reset password and clear OTP fields
+    user.password = password;
+    user.confirmPassword = password;
+    user.otp = undefined;
+    user.otpExpiry = undefined;
+
+    // Invalidate all existing refresh tokens
     user.refreshTokens = [];
 
     await user.save();
