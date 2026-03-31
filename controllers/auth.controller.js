@@ -61,8 +61,16 @@ const sendTokenResponse = (user, statusCode, res) => {
  */
 exports.register = async (req, res) => {
   try {
-    const { firstName, lastName, email, password, confirmPassword, age, dateOfBirth, phoneNumber } =
-      req.body;
+    const {
+      firstName,
+      lastName,
+      email,
+      password,
+      confirmPassword,
+      age,
+      dateOfBirth,
+      phoneNumber,
+    } = req.body;
 
     if (!firstName || !lastName || !email || !password || !confirmPassword) {
       return res.status(400).json({ message: "All fields required" });
@@ -444,7 +452,9 @@ exports.updateMe = async (req, res) => {
     if (dateOfBirth !== undefined) {
       const parts = String(dateOfBirth).split(".");
       if (parts.length === 3) {
-        updatedFields.dateOfBirth = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+        updatedFields.dateOfBirth = new Date(
+          `${parts[2]}-${parts[1]}-${parts[0]}`,
+        );
       } else {
         updatedFields.dateOfBirth = new Date(dateOfBirth);
       }
@@ -453,7 +463,7 @@ exports.updateMe = async (req, res) => {
     const user = await User.findByIdAndUpdate(
       req.user.id,
       { $set: updatedFields },
-      { new: true, runValidators: true }
+      { new: true, runValidators: true },
     );
 
     res.status(200).json({ success: true, user });
