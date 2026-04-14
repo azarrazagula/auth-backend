@@ -26,6 +26,7 @@ app.use(
 
 const allowedOrigins = [
   process.env.CLIENT_URL,
+  process.env.CLIENT_ADMIN_URL,
   "http://localhost:3000",
   "http://localhost:3001",
   "http://localhost:3002",

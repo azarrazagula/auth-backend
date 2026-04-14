@@ -11,7 +11,7 @@ const generateOtp = require("../../utils/generateOtp");
 /**
  * Helper: send token response with httpOnly cookie
  */
-const sendTokenResponse = (user, statusCode, res) => {
+const sendTokenResponse = async (user, statusCode, res) => {
   if (!process.env.JWT_ACCESS_SECRET || !process.env.JWT_REFRESH_SECRET) {
     throw new Error("JWT secrets are not defined in environment variables");
   }
@@ -21,7 +21,7 @@ const sendTokenResponse = (user, statusCode, res) => {
 
   if (!user.refreshTokens) user.refreshTokens = [];
   user.refreshTokens.push(refreshToken);
-  user.save({ validateBeforeSave: false });
+  await user.save({ validateBeforeSave: false });
 
   res
     .status(statusCode)
@@ -75,7 +75,7 @@ exports.adminLogin = async (req, res) => {
     user.lastLogin = Date.now();
     await user.save({ validateBeforeSave: false });
 
-    sendTokenResponse(user, 200, res);
+    await sendTokenResponse(user, 200, res);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
