@@ -6,15 +6,20 @@ const nodemailer = require('nodemailer');
  */
 const sendEmail = async ({ to, subject, html }) => {
   let transporter;
-  const isMock = process.env.EMAIL_USER === 'your_actual_email@gmail.com' || !process.env.EMAIL_USER;
+  const emailUser = process.env.EMAIL_USER ? process.env.EMAIL_USER.trim() : '';
+  const isMock = emailUser === 'your_actual_email@gmail.com' || !emailUser;
+
+  console.log(`[Email] isMock=${isMock}, emailUser="${emailUser}"`);
 
   if (isMock) {
     // Generate a mock email account for development/testing
+    console.log('[Email] Creating Ethereal test account...');
     const testAccount = await nodemailer.createTestAccount();
     transporter = nodemailer.createTransport({
       host: "smtp.ethereal.email",
       port: 587,
       secure: false,
+      connectionTimeout: 10000,
       auth: {
         user: testAccount.user,
         pass: testAccount.pass,
@@ -41,12 +46,17 @@ const sendEmail = async ({ to, subject, html }) => {
     html,
   };
 
+  console.log(`[Email] Sending email to ${to}...`);
   const info = await transporter.sendMail(mailOptions);
+  console.log('[Email] Email sent successfully!');
+  const previewUrl = isMock ? nodemailer.getTestMessageUrl(info) : null;
 
   if (isMock) {
     // Log the clickable link to the mock email in the terminal
-    console.log("✅ Mock Email Sent! Preview URL: %s", nodemailer.getTestMessageUrl(info));
+    console.log("✅ Mock Email Sent! Preview URL: %s", previewUrl);
   }
+
+  return { info, previewUrl };
 };
 
 module.exports = sendEmail;

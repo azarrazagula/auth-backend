@@ -275,13 +275,18 @@ exports.forgotPassword = async (req, res) => {
       <p>This link is valid for 10 minutes.</p>
     `;
 
-    // Skipping explicit email sending since you do not have an email service configured right now
-    /*
     try {
-      await sendEmail({
+      const emailResult = await sendEmail({
         to: user.email,
         subject: "Password Reset Request",
         html: message,
+      });
+
+      res.status(200).json({
+        success: true,
+        message: "Email sent",
+        resetToken,
+        previewUrl: emailResult.previewUrl,
       });
     } catch (error) {
       console.error("Forgot password email error:", error);
@@ -290,13 +295,6 @@ exports.forgotPassword = async (req, res) => {
       await user.save({ validateBeforeSave: false });
       return res.status(500).json({ message: "Email could not be sent" });
     }
-    */
-
-    res.status(200).json({
-      success: true,
-      message: "Email sent",
-      resetToken,
-    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

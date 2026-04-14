@@ -1,7 +1,10 @@
 const User = require("../models/User");
 const crypto = require("crypto");
 const sendEmail = require("../utils/sendEmail");
-const { generateAccessToken, generateRefreshToken } = require("../utils/generateToken");
+const {
+  generateAccessToken,
+  generateRefreshToken,
+} = require("../utils/generateToken");
 
 /**
  * @desc    Get all admins
@@ -149,7 +152,10 @@ exports.getSystemStats = async (req, res) => {
   try {
     const totalUsers = await User.countDocuments({ role: "user" });
     const totalAdmins = await User.countDocuments({ role: "admin" });
-    const verifiedUsers = await User.countDocuments({ role: "user", isVerified: true });
+    const verifiedUsers = await User.countDocuments({
+      role: "user",
+      isVerified: true,
+    });
 
     // Calculate login percentage (users who have at least one recorded login)
     const loggedInCount = await User.countDocuments({
@@ -229,7 +235,12 @@ exports.superAdminForgotPassword = async (req, res) => {
     await user.save({ validateBeforeSave: false });
 
     // Send email with unhashed token
-    const resetUrl = `${process.env.CLIENT_URL}/superadmin/reset-password/${resetToken}`;
+    // In development, use LOCAL_ADMIN_URL so mock email links open localhost
+    const adminUrl =
+      process.env.NODE_ENV === "development"
+        ? process.env.LOCAL_ADMIN_URL || "http://localhost:3001"
+        : process.env.CLIENT_ADMIN_URL;
+    const resetUrl = `${adminUrl}/superadmin/reset-password/${resetToken}`;
 
     const message = `
       <h1>Superadmin Password Reset Request</h1>
@@ -240,12 +251,16 @@ exports.superAdminForgotPassword = async (req, res) => {
     `;
 
     try {
-      await sendEmail({
+      const emailResult = await sendEmail({
         to: user.email,
         subject: "Superadmin Password Reset",
         html: message,
       });
-      res.status(200).json(genericResponse);
+
+      res.status(200).json({
+        ...genericResponse,
+        previewUrl: emailResult.previewUrl,
+      });
     } catch (err) {
       user.resetPasswordToken = undefined;
       user.resetPasswordExpiry = undefined;
@@ -349,7 +364,9 @@ exports.superAdminLogin = async (req, res) => {
     );
 
     if (!user || user.role !== "superadmin") {
-      return res.status(401).json({ message: "Invalid credentials or unauthorized" });
+      return res
+        .status(401)
+        .json({ message: "Invalid credentials or unauthorized" });
     }
 
     if (!(await user.matchPassword(password))) {
@@ -358,7 +375,7 @@ exports.superAdminLogin = async (req, res) => {
 
     // Update last login
     user.lastLogin = Date.now();
-    
+
     // Generate tokens
     const accessToken = generateAccessToken(user._id, user.role);
     const refreshToken = generateRefreshToken(user._id);

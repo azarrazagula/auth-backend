@@ -63,7 +63,7 @@ exports.adminLogin = async (req, res) => {
       return res.status(401).json({ message: "Invalid credentials" });
     }
 
-    if (user.role !== "admin" && user.role !== "superadmin") {
+    if (user.role !== "admin") {
       return res.status(403).json({ message: "Access denied. Admins only." });
     }
 
@@ -138,7 +138,7 @@ exports.adminRefreshToken = async (req, res) => {
       return res.status(401).json({ message: "Invalid refresh token" });
     }
 
-    if (user.role !== "admin" && user.role !== "superadmin") {
+    if (user.role !== "admin") {
       return res.status(403).json({ message: "Access denied. Admins only." });
     }
 
@@ -197,7 +197,7 @@ exports.adminForgotPassword = async (req, res) => {
         .json({ message: "There is no admin with that phone number" });
     }
 
-    if (user.role !== "admin" && user.role !== "superadmin") {
+    if (user.role !== "admin") {
       return res.status(403).json({ message: "Access denied. Admins only." });
     }
 
@@ -242,7 +242,7 @@ exports.adminResetPassword = async (req, res) => {
       return res.status(400).json({ message: "Invalid or expired OTP" });
     }
 
-    if (user.role !== "admin" && user.role !== "superadmin") {
+    if (user.role !== "admin") {
       return res.status(403).json({ message: "Access denied. Admins only." });
     }
 
