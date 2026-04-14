@@ -46,17 +46,22 @@ const sendEmail = async ({ to, subject, html }) => {
     html,
   };
 
-  console.log(`[Email] Sending email to ${to}...`);
-  const info = await transporter.sendMail(mailOptions);
-  console.log('[Email] Email sent successfully!');
-  const previewUrl = isMock ? nodemailer.getTestMessageUrl(info) : null;
+  try {
+    console.log(`[Email] Sending email to ${to}...`);
+    const info = await transporter.sendMail(mailOptions);
+    console.log('[Email] Email sent successfully!');
+    const previewUrl = isMock ? nodemailer.getTestMessageUrl(info) : null;
 
-  if (isMock) {
-    // Log the clickable link to the mock email in the terminal
-    console.log("✅ Mock Email Sent! Preview URL: %s", previewUrl);
+    if (isMock) {
+      // Log the clickable link to the mock email in the terminal
+      console.log("✅ Mock Email Sent! Preview URL: %s", previewUrl);
+    }
+
+    return { info, previewUrl };
+  } catch (error) {
+    console.error('[Email] CRITICAL ERROR sending email:', error);
+    throw error; // Re-throw to be handled by the controller
   }
-
-  return { info, previewUrl };
 };
 
 module.exports = sendEmail;

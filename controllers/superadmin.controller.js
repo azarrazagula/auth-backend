@@ -262,10 +262,15 @@ exports.superAdminForgotPassword = async (req, res) => {
         previewUrl: emailResult.previewUrl,
       });
     } catch (err) {
+      console.error("FORGOT PASSWORD EMAIL ERROR:", err);
       user.resetPasswordToken = undefined;
       user.resetPasswordExpiry = undefined;
       await user.save({ validateBeforeSave: false });
-      return res.status(500).json({ message: "Email could not be sent" });
+      return res.status(500).json({ 
+        message: "Email could not be sent",
+        error: err.message,
+        details: err.code || "No error code"
+      });
     }
   } catch (error) {
     res.status(500).json({ message: error.message });
