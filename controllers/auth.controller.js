@@ -43,7 +43,7 @@ const sendTokenResponse = async (user, statusCode, res) => {
       accessToken,
       user: {
         id: user._id,
-        name: user.name,
+        name: user.name || `${user.firstName} ${user.lastName}`,
         email: user.email,
         age: user.age,
         dateOfBirth: user.dateOfBirth,
@@ -143,10 +143,11 @@ exports.login = async (req, res) => {
     }
 
     user.lastLogin = Date.now();
-    await user.save({ validateBeforeSave: false });
-
+    // No need to save here, sendTokenResponse will save the user document
+    
     await sendTokenResponse(user, 200, res);
   } catch (error) {
+    console.error("LOGIN ERROR:", error);
     res.status(500).json({ message: error.message });
   }
 };
