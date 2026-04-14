@@ -250,26 +250,26 @@ exports.superAdminForgotPassword = async (req, res) => {
       <p>If you did not make this request, please ignore this email.</p>
     `;
 
-    let previewLink = null;
     try {
-      const emailResult = await sendEmail({
+      await sendEmail({
         to: user.email,
         subject: "Superadmin Password Reset",
         html: message,
       });
-      previewLink = emailResult.previewUrl;
-    } catch (err) {
-      console.error("FORGOT PASSWORD EMAIL ERROR (Mock blocked):", err.message);
-      // Fallback for Demo App: If Render blocks Ethereal, just pass the reset link directly!
-      previewLink = resetUrl; 
-    }
 
-    // Success response for Demo
-    res.status(200).json({
-      success: true,
-      message: "Password reset processed successfully.",
-      previewUrl: previewLink
-    });
+      // Success response - SendGrid fired successfully 
+      res.status(200).json(genericResponse);
+
+    } catch (err) {
+      console.error("FORGOT PASSWORD EMAIL ERROR (SendGrid):", err.message);
+      
+      // Cleanup token on fail
+      user.resetPasswordToken = undefined;
+      user.resetPasswordExpiry = undefined;
+      await user.save({ validateBeforeSave: false });
+
+      return res.status(500).json({ message: "Error sending password reset email." });
+    }
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

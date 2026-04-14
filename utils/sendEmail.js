@@ -1,66 +1,50 @@
-const nodemailer = require('nodemailer');
-
-/**
- * Send an email
- * @param {Object} options - { to, subject, html }
- */
 const sendEmail = async ({ to, subject, html }) => {
-  let transporter;
-  const emailUser = process.env.EMAIL_USER ? process.env.EMAIL_USER.trim() : '';
-  const isMock = emailUser === 'your_actual_email@gmail.com' || !emailUser;
+  const apiKey = process.env.SENDGRID_API_KEY;
+  // Fallback to a default sender if EMAIL_FROM is not set in your .env
+  const senderEmail = process.env.EMAIL_FROM || "no-reply@yourdomain.com";
 
-  console.log(`[Email] isMock=${isMock}, emailUser="${emailUser}"`);
-
-  if (isMock) {
-    // Generate a mock email account for development/testing
-    console.log('[Email] Creating Ethereal test account...');
-    const testAccount = await nodemailer.createTestAccount();
-    transporter = nodemailer.createTransport({
-      host: "smtp.ethereal.email",
-      port: 587,
-      secure: false,
-      connectionTimeout: 10000,
-      auth: {
-        user: testAccount.user,
-        pass: testAccount.pass,
-      },
-    });
-    console.log("⚠️ Using mock email service (Ethereal) because .env has placeholder credentials.");
-  } else {
-    // Use real credentials from .env
-    transporter = nodemailer.createTransport({
-      host: process.env.EMAIL_HOST,
-      port: parseInt(process.env.EMAIL_PORT, 10),
-      secure: false, // true for 465, false for other ports
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
-      },
-    });
+  if (!apiKey) {
+    throw new Error("SENDGRID_API_KEY is not defined in environment variables");
   }
 
-  const mailOptions = {
-    from: isMock ? '"Auth App" <mock@ethereal.email>' : `"Auth App" <${process.env.EMAIL_USER}>`,
-    to,
-    subject,
-    html,
+  const payload = {
+    personalizations: [
+      {
+        to: [{ email: to }],
+        subject: subject,
+      },
+    ],
+    from: { email: senderEmail, name: "Auth App" },
+    content: [
+      {
+        type: "text/html",
+        value: html,
+      },
+    ],
   };
 
   try {
-    console.log(`[Email] Sending email to ${to}...`);
-    const info = await transporter.sendMail(mailOptions);
-    console.log('[Email] Email sent successfully!');
-    const previewUrl = isMock ? nodemailer.getTestMessageUrl(info) : null;
+    console.log(`[Email] Sending SendGrid email to ${to}...`);
+    // Using native fetch API to call SendGrid's v3 endpoint
+    const response = await fetch("https://api.sendgrid.com/v3/mail/send", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
 
-    if (isMock) {
-      // Log the clickable link to the mock email in the terminal
-      console.log("✅ Mock Email Sent! Preview URL: %s", previewUrl);
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => null);
+      throw new Error(`SendGrid API Error (${response.status}): ${JSON.stringify(errorData)}`);
     }
 
-    return { info, previewUrl };
+    console.log(`[Email] Email sent successfully to ${to} via SendGrid!`);
+    return { success: true };
   } catch (error) {
-    console.error('[Email] CRITICAL ERROR sending email:', error);
-    throw error; // Re-throw to be handled by the controller
+    console.error("[Email] CRITICAL ERROR sending email:", error.message);
+    throw error;
   }
 };
 
