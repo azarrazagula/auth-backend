@@ -9,15 +9,15 @@ const {
   superAdminForgotPassword,
   superAdminResetPassword,
   superAdminDirectResetPassword,
+  superAdminLogin,
 } = require("../controllers/superadmin.controller");
-const { adminLogin } = require("../controllers/Admin/admin.controller");
 const { protect, authorize } = require("../middleware/auth");
 const { authLimiter } = require("../middleware/rateLimiter");
 
 /**
  * @desc Public Login for Super Admin
  */
-router.post("/login", adminLogin);
+router.post("/login", superAdminLogin);
 
 /**
  * @desc Test route

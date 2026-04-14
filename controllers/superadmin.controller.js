@@ -1,6 +1,7 @@
 const User = require("../models/User");
 const crypto = require("crypto");
 const sendEmail = require("../utils/sendEmail");
+const { generateAccessToken, generateRefreshToken } = require("../utils/generateToken");
 
 /**
  * @desc    Get all admins
@@ -330,6 +331,63 @@ exports.superAdminDirectResetPassword = async (req, res) => {
       message: "Superadmin password updated successfully. Please log in.",
     });
   } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+/**
+ * @desc    Superadmin login
+ * @route   POST /api/superadmin/login
+ * @access  Public
+ */
+exports.superAdminLogin = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    // Must select refreshTokens because they are select: false in the model
+    const user = await User.findOne({ email }).select(
+      "+password +refreshTokens",
+    );
+
+    if (!user || user.role !== "superadmin") {
+      return res.status(401).json({ message: "Invalid credentials or unauthorized" });
+    }
+
+    if (!(await user.matchPassword(password))) {
+      return res.status(401).json({ message: "Invalid credentials" });
+    }
+
+    // Update last login
+    user.lastLogin = Date.now();
+    
+    // Generate tokens
+    const accessToken = generateAccessToken(user._id, user.role);
+    const refreshToken = generateRefreshToken(user._id);
+
+    // Save refresh token to DB
+    if (!user.refreshTokens) user.refreshTokens = [];
+    user.refreshTokens.push(refreshToken);
+    await user.save({ validateBeforeSave: false });
+
+    res
+      .status(200)
+      .cookie("sa_refreshToken", refreshToken, {
+        expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict",
+      })
+      .json({
+        success: true,
+        accessToken,
+        user: {
+          id: user._id,
+          name: user.name || `${user.firstName} ${user.lastName}`,
+          email: user.email,
+          role: user.role,
+        },
+      });
+  } catch (error) {
+    console.error("SUPERADMIN LOGIN ERROR:", error);
     res.status(500).json({ message: error.message });
   }
 };
