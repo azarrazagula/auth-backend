@@ -11,7 +11,7 @@ const generateOtp = require("../utils/generateOtp");
 /**
  * Helper to send token response (access token + httpOnly refresh cookie)
  */
-const sendTokenResponse = (user, statusCode, res) => {
+const sendTokenResponse = async (user, statusCode, res) => {
   if (!process.env.JWT_ACCESS_SECRET || !process.env.JWT_REFRESH_SECRET) {
     throw new Error("JWT secrets are not defined in environment variables");
   }
@@ -26,7 +26,7 @@ const sendTokenResponse = (user, statusCode, res) => {
 
   // Save refresh token to DB (array)
   user.refreshTokens.push(refreshToken);
-  user.save({ validateBeforeSave: false });
+  await user.save({ validateBeforeSave: false });
 
   const options = {
     expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
@@ -99,7 +99,6 @@ exports.register = async (req, res) => {
     const user = await User.create({
       firstName,
       lastName,
-      name: `${firstName} ${lastName}`,
       email,
       password,
       age,
@@ -107,13 +106,16 @@ exports.register = async (req, res) => {
       phoneNumber,
     });
 
-    res.status(201).json({
-      success: true,
-      message: "User registered successfully",
-      user,
-    });
+    await sendTokenResponse(user, 201, res);
   } catch (error) {
     console.error("REGISTER ERROR:", error);
+    if (error.name === "ValidationError") {
+      const messages = Object.values(error.errors).map((val) => val.message);
+      return res.status(400).json({ message: messages.join(", ") });
+    }
+    if (error.code === 11000) {
+      return res.status(400).json({ message: "Email already exists" });
+    }
     res.status(500).json({ message: error.message });
   }
 };
@@ -143,7 +145,7 @@ exports.login = async (req, res) => {
     user.lastLogin = Date.now();
     await user.save({ validateBeforeSave: false });
 
-    sendTokenResponse(user, 200, res);
+    await sendTokenResponse(user, 200, res);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
