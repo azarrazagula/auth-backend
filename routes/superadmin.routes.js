@@ -31,10 +31,6 @@ router.get("/test", (req, res) =>
  */
 router.post("/forgot-password", authLimiter, superAdminForgotPassword);
 
-/**
- * @desc Superadmin reset password (missing token handler)
- */
-router.put(["/reset-password", "/reset-password/"], authLimiter, superAdminDirectResetPassword);
 
 /**
  * @desc Superadmin reset password
