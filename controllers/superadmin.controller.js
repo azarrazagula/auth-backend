@@ -5,6 +5,7 @@ const {
   generateAccessToken,
   generateRefreshToken,
 } = require("../utils/generateToken");
+const generateOtp = require("../utils/generateOtp");
 
 /**
  * @desc    Get all admins
@@ -223,49 +224,46 @@ exports.superAdminForgotPassword = async (req, res) => {
     }
 
     // Generate secure reset token
-    const resetToken = crypto.randomBytes(32).toString("hex");
+    const { otp, otpExpiry } = generateOtp();
 
-    // Hash token and set to resetPasswordToken field
-    user.resetPasswordToken = crypto
-      .createHash("sha256")
-      .update(resetToken)
-      .digest("hex");
+    // Set OTP and expiry to user record
+    user.otp = otp;
+    user.otpExpiry = otpExpiry;
 
-    user.resetPasswordExpiry = Date.now() + 15 * 60 * 1000; // 15 minutes
     await user.save({ validateBeforeSave: false });
 
-    // Send email with unhashed token
-    // In development, use LOCAL_ADMIN_URL so mock email links open localhost
-    const adminUrl =
-      process.env.NODE_ENV === "development"
-        ? process.env.LOCAL_ADMIN_URL || "http://localhost:3001"
-        : process.env.CLIENT_ADMIN_URL;
-    const resetUrl = `${adminUrl}/superadmin/reset-password/${resetToken}`;
-
     const message = `
-      <h1>Superadmin Password Reset Request</h1>
-      <p>You have requested to reset your Superadmin password.</p>
-      <p>Please click the link below to reset your password. This link is valid for 15 minutes.</p>
-      <a href="${resetUrl}" clicktracking="off">${resetUrl}</a>
-      <p>If you did not make this request, please ignore this email.</p>
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 10px;">
+        <h1 style="color: #333; text-align: center;">Superadmin Password Reset Request</h1>
+        <p style="color: #555; font-size: 16px; line-height: 1.5;">You have requested to reset your Superadmin password. Please use the One-Time Password (OTP) below to complete the process.</p>
+        <div style="background-color: #f4f4f4; padding: 15px; text-align: center; border-radius: 8px; margin: 20px 0;">
+          <span style="font-size: 32px; font-weight: bold; letter-spacing: 5px; color: #2c3e50;">${otp}</span>
+        </div>
+        <p style="color: #777; font-size: 14px; text-align: center;">This OTP is valid for 10 minutes. If you did not make this request, please ignore this email.</p>
+        <hr style="border: 0; border-top: 1px solid #eee; margin: 30px 0;">
+        <p style="color: #999; font-size: 12px; text-align: center;">Secure Auth System &bull; Superadmin Portal</p>
+      </div>
     `;
 
     try {
       await sendEmail({
         to: user.email,
-        subject: "Superadmin Password Reset",
+        subject: "Superadmin Password Reset OTP",
         html: message,
       });
 
       // Success response - SendGrid fired successfully 
-      res.status(200).json(genericResponse);
+      res.status(200).json({
+        success: true,
+        message: "A 6-digit OTP has been sent to your email address.",
+      });
 
     } catch (err) {
       console.error("FORGOT PASSWORD EMAIL ERROR (SendGrid):", err.message);
       
       // Cleanup token on fail
-      user.resetPasswordToken = undefined;
-      user.resetPasswordExpiry = undefined;
+      user.otp = undefined;
+      user.otpExpiry = undefined;
       await user.save({ validateBeforeSave: false });
 
       return res.status(500).json({ message: "Error sending password reset email." });
@@ -276,33 +274,32 @@ exports.superAdminForgotPassword = async (req, res) => {
 };
 
 /**
- * @desc    Superadmin reset password
- * @route   PUT /api/superadmin/reset-password/:token
+ * @desc    Superadmin reset password using OTP
+ * @route   PUT /api/superadmin/reset-password-otp
  * @access  Public
  */
-exports.superAdminResetPassword = async (req, res) => {
+exports.superAdminResetPasswordOtp = async (req, res) => {
   try {
-    const { password } = req.body;
+    const { email, otp, password } = req.body;
 
-    // Get hashed token
-    const resetPasswordToken = crypto
-      .createHash("sha256")
-      .update(req.params.token)
-      .digest("hex");
+    if (!email || !otp || !password) {
+      return res.status(400).json({ message: "Please provide email, OTP, and new password" });
+    }
 
     const user = await User.findOne({
-      resetPasswordToken,
-      resetPasswordExpiry: { $gt: Date.now() },
-    }).select("+refreshTokens");
+      email,
+      otp,
+      otpExpiry: { $gt: Date.now() },
+    }).select("+refreshTokens +otp +otpExpiry");
 
     if (!user || user.role !== "superadmin") {
-      return res.status(400).json({ message: "Invalid or expired token" });
+      return res.status(400).json({ message: "Invalid or expired OTP" });
     }
 
     user.password = password;
     user.confirmPassword = password;
-    user.resetPasswordToken = undefined;
-    user.resetPasswordExpiry = undefined;
+    user.otp = undefined;
+    user.otpExpiry = undefined;
 
     // Invalidate all existing refresh tokens for security
     user.refreshTokens = [];

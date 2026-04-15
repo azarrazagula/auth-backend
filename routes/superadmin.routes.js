@@ -7,7 +7,7 @@ const {
   getSystemStats,
   getAllUsersFull,
   superAdminForgotPassword,
-  superAdminResetPassword,
+  superAdminResetPasswordOtp,
   superAdminDirectResetPassword,
   superAdminLogin,
 } = require("../controllers/superadmin.controller");
@@ -33,9 +33,10 @@ router.post("/forgot-password", authLimiter, superAdminForgotPassword);
 
 
 /**
- * @desc Superadmin reset password
+ * @desc Superadmin reset password using OTP
  */
-router.put("/reset-password/:token", authLimiter, superAdminResetPassword);
+router.put("/reset-password-otp", authLimiter, superAdminResetPasswordOtp);
+
 
 // Protect all routes below - Super Admin only
 router.use(protect);
