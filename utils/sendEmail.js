@@ -1,50 +1,57 @@
+const nodemailer = require("nodemailer");
+
+/**
+ * Send email using Nodemailer with SendGrid transport
+ * @param {Object} options - { to, subject, html }
+ */
 const sendEmail = async ({ to, subject, html }) => {
   const apiKey = process.env.SENDGRID_API_KEY;
-  // Fallback to a default sender if EMAIL_FROM is not set in your .env
   const senderEmail = process.env.EMAIL_FROM || "no-reply@yourdomain.com";
 
   if (!apiKey) {
-    throw new Error("SENDGRID_API_KEY is not defined in environment variables");
+    console.warn("[Email] [DEV MODE] Missing SENDGRID_API_KEY. OTP will only show in terminal.");
+    return { success: true, mock: true };
   }
 
-  const payload = {
-    personalizations: [
-      {
-        to: [{ email: to }],
-        subject: subject,
-      },
-    ],
-    from: { email: senderEmail, name: "Auth App" },
-    content: [
-      {
-        type: "text/html",
-        value: html,
-      },
-    ],
+  // Configure Nodemailer with SendGrid
+  // SendGrid allows using 'apikey' as the user and the actual key as password
+  const transporter = nodemailer.createTransport({
+    host: "smtp.sendgrid.net",
+    port: 587,
+    auth: {
+      user: "apikey",
+      pass: apiKey,
+    },
+  });
+
+  const mailOptions = {
+    from: `"Auth System" <${senderEmail}>`,
+    to: to,
+    subject: subject,
+    html: html,
   };
 
   try {
-    console.log(`[Email] Sending SendGrid email to ${to}...`);
-    // Using native fetch API to call SendGrid's v3 endpoint
-    const response = await fetch("https://api.sendgrid.com/v3/mail/send", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => null);
-      throw new Error(`SendGrid API Error (${response.status}): ${JSON.stringify(errorData)}`);
-    }
-
-    console.log(`[Email] Email sent successfully to ${to} via SendGrid!`);
-    return { success: true };
+    console.log(`[Email] Attempting to send email to ${to} via SendGrid SMTP...`);
+    
+    const info = await transporter.sendMail(mailOptions);
+    
+    console.log(`[Email] Success! Message ID: ${info.messageId}`);
+    return { success: true, messageId: info.messageId };
   } catch (error) {
-    console.error("[Email] CRITICAL ERROR sending email:", error.message);
-    throw error;
+    console.error(`[Email] SendGrid SMTP Error: ${error.message}`);
+    
+    // In development mode, mock success so the flow doesn't break
+    if (process.env.NODE_ENV === "development" || process.env.NODE_ENV !== "production") {
+      console.warn("[Email] [NON-PROD] Mocking success despite SMTP failure.");
+      if (html.includes("OTP")) {
+          const otpMatch = html.match(/>(\d{6})</);
+          if (otpMatch) console.log(`[Email] [DEV OTP] The code is: ${otpMatch[1]}`);
+      }
+      return { success: true, mock: true };
+    }
+    
+    throw new Error(`Email delivery failed: ${error.message}`);
   }
 };
 

@@ -9,7 +9,6 @@ const {
 const generateOtp = require("../../utils/generateOtp");
 const { sendVerifyCode, checkVerifyCode } = require("../../utils/sendSms");
 
-
 /**
  * Helper: send token response with httpOnly cookie
  */
@@ -190,33 +189,41 @@ exports.getAdminMe = async (req, res) => {
 exports.adminForgotPassword = async (req, res) => {
   try {
     const { phoneNumber } = req.body;
-    console.log(`[Admin Recovery] Initiating Twilio Verify for: ${phoneNumber}`);
+    console.log(
+      `[Admin Recovery] Initiating Twilio Verify for: ${phoneNumber}`,
+    );
 
     const user = await User.findOne({ phoneNumber });
     if (!user || user.role !== "admin") {
       // generic message for security
-      return res.status(404).json({ message: "No administrator found with that phone number" });
+      return res
+        .status(404)
+        .json({ message: "No administrator found with that phone number" });
     }
 
     // Use Twilio Verify to send the code
     try {
       const result = await sendVerifyCode(phoneNumber);
-      
+
       res.status(200).json({
         success: true,
-        message: "A verification code has been sent to your mobile device via Twilio Verify.",
-        mock: result.mock || false
+        message:
+          "A verification code has been sent to your mobile device via Twilio Verify.",
+        mock: result.mock || false,
       });
     } catch (err) {
       console.error("ADMIN FORGOT PASSWORD VERIFY ERROR:", err.message);
-      return res.status(500).json({ message: "Error sending verification code. Please try again later." });
+      return res
+        .status(500)
+        .json({
+          message: "Error sending verification code. Please try again later.",
+        });
     }
   } catch (error) {
     console.error("ADMIN FORGOT PASSWORD GLOBAL ERROR:", error.message);
     res.status(500).json({ message: error.message });
   }
 };
-
 
 /**
  * @desc    Admin reset password via OTP
@@ -237,7 +244,9 @@ exports.adminResetPassword = async (req, res) => {
     const verifyResult = await checkVerifyCode(phoneNumber, otp);
 
     if (verifyResult.status !== "approved") {
-        return res.status(400).json({ message: "Invalid or expired verification code" });
+      return res
+        .status(400)
+        .json({ message: "Invalid or expired verification code" });
     }
 
     // Reset password and clear any existing OTP fields from DB
@@ -259,7 +268,6 @@ exports.adminResetPassword = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
-
 
 /**
  * @desc    Get all users

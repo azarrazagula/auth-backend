@@ -1,12 +1,13 @@
 const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
+const sendEmail = require("../utils/sendEmail");
 const {
   generateAccessToken,
   generateRefreshToken,
 } = require("../utils/generateToken");
-const sendEmail = require("../utils/sendEmail");
 const generateOtp = require("../utils/generateOtp");
+
 
 /**
  * Helper to send token response (access token + httpOnly refresh cookie)
@@ -367,14 +368,43 @@ exports.forgotPasswordOTP = async (req, res) => {
     user.otpExpiry = otpExpiry;
     await user.save({ validateBeforeSave: false });
 
-    // In dev mode, return OTP. In prod, send via email.
-    console.log(`[OTP GENERATED] User OTP for ${email} is: ${otp}`);
+    // Send OTP via email using premium template
+    const message = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 10px;">
+        <h1 style="color: #333; text-align: center;">Account Password Reset Request</h1>
+        <p style="color: #555; font-size: 16px; line-height: 1.5;">You have requested to reset your password. Please use the One-Time Password (OTP) below to complete the process.</p>
+        <div style="background-color: #f4f4f4; padding: 15px; text-align: center; border-radius: 8px; margin: 20px 0;">
+          <span style="font-size: 32px; font-weight: bold; letter-spacing: 5px; color: #2c3e50;">${otp}</span>
+        </div>
+        <p style="color: #777; font-size: 14px; text-align: center;">This OTP is valid for 10 minutes. If you did not make this request, please ignore this email.</p>
+        <hr style="border: 0; border-top: 1px solid #eee; margin: 30px 0;">
+        <p style="color: #999; font-size: 12px; text-align: center;">Secure Auth System &bull; Safe Space</p>
+      </div>
+    `;
 
-    res.status(200).json({
-      success: true,
-      message: "Reset code sent to your email",
-      otp, // Dev only
-    });
+    try {
+      await sendEmail({
+        to: user.email,
+        subject: "Safe Space Auth - Password Reset OTP",
+        html: message,
+      });
+
+      res.status(200).json({
+        success: true,
+        message: "A 6-digit OTP has been sent to your email address.",
+      });
+    } catch (err) {
+      console.error("USER FORGOT PASSWORD EMAIL ERROR:", err.message);
+
+      // Cleanup on fail
+      user.otp = undefined;
+      user.otpExpiry = undefined;
+      await user.save({ validateBeforeSave: false });
+
+      return res
+        .status(500)
+        .json({ message: "Error sending password reset email." });
+    }
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

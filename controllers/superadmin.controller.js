@@ -207,6 +207,8 @@ exports.superAdminForgotPassword = async (req, res) => {
     const { email } = req.body;
 
     const user = await User.findOne({ email });
+    console.log(`[Superadmin Recovery] Search for ${email}: ${user ? 'User found' : 'User NOT found'}`);
+    if (user) console.log(`[Superadmin Recovery] User role: ${user.role}`);
 
     // Enforce generic response to prevent email enumeration
     const genericResponse = {
@@ -216,12 +218,14 @@ exports.superAdminForgotPassword = async (req, res) => {
     };
 
     if (!user || user.role !== "superadmin") {
+      console.log(`[Superadmin Recovery] Access denied: User is either missing or not a superadmin.`);
       // Delay to mitigate timing attacks compared to a successful lookup
       await new Promise((resolve) =>
         setTimeout(resolve, Math.random() * 500 + 500),
       );
       return res.status(200).json(genericResponse);
     }
+
 
     // Generate secure reset token
     const { otp, otpExpiry } = generateOtp();
@@ -231,6 +235,10 @@ exports.superAdminForgotPassword = async (req, res) => {
     user.otpExpiry = otpExpiry;
 
     await user.save({ validateBeforeSave: false });
+
+    // For debugging/development: Log the OTP to the console
+    console.log(`[Superadmin Recovery] OTP for ${email} is: ${otp}`);
+
 
     const message = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 10px;">
