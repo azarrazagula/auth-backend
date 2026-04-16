@@ -7,6 +7,8 @@ const {
   generateRefreshToken,
 } = require("../../utils/generateToken");
 const generateOtp = require("../../utils/generateOtp");
+const { sendVerifyCode, checkVerifyCode } = require("../../utils/sendSms");
+
 
 /**
  * Helper: send token response with httpOnly cookie
@@ -188,40 +190,33 @@ exports.getAdminMe = async (req, res) => {
 exports.adminForgotPassword = async (req, res) => {
   try {
     const { phoneNumber } = req.body;
+    console.log(`[Admin Recovery] Initiating Twilio Verify for: ${phoneNumber}`);
 
     const user = await User.findOne({ phoneNumber });
-
-    if (!user) {
-      return res
-        .status(404)
-        .json({ message: "There is no admin with that phone number" });
+    if (!user || user.role !== "admin") {
+      // generic message for security
+      return res.status(404).json({ message: "No administrator found with that phone number" });
     }
 
-    if (user.role !== "admin") {
-      return res.status(403).json({ message: "Access denied. Admins only." });
+    // Use Twilio Verify to send the code
+    try {
+      const result = await sendVerifyCode(phoneNumber);
+      
+      res.status(200).json({
+        success: true,
+        message: "A verification code has been sent to your mobile device via Twilio Verify.",
+        mock: result.mock || false
+      });
+    } catch (err) {
+      console.error("ADMIN FORGOT PASSWORD VERIFY ERROR:", err.message);
+      return res.status(500).json({ message: "Error sending verification code. Please try again later." });
     }
-
-    // Generate 6-digit OTP
-    const { otp, otpExpiry } = generateOtp();
-
-    // Save to user (don't validate before save)
-    user.otp = otp;
-    user.otpExpiry = otpExpiry;
-    await user.save({ validateBeforeSave: false });
-
-    // In a real application, you'd send this OTP via SMS here.
-    console.log(`[OTP GENERATED] Admin OTP for ${phoneNumber} is: ${otp}`);
-
-    res.status(200).json({
-      success: true,
-      message: "OTP sent to your phone number",
-      // Dev mode: returning OTP directly to test it. Remove in production!
-      otp, 
-    });
   } catch (error) {
+    console.error("ADMIN FORGOT PASSWORD GLOBAL ERROR:", error.message);
     res.status(500).json({ message: error.message });
   }
 };
+
 
 /**
  * @desc    Admin reset password via OTP
@@ -232,21 +227,20 @@ exports.adminResetPassword = async (req, res) => {
   try {
     const { phoneNumber, otp, password } = req.body;
 
-    const user = await User.findOne({
-      phoneNumber,
-      otp,
-      otpExpiry: { $gt: Date.now() },
-    }).select("+otp +otpExpiry +refreshTokens");
+    const user = await User.findOne({ phoneNumber });
 
-    if (!user) {
-      return res.status(400).json({ message: "Invalid or expired OTP" });
-    }
-
-    if (user.role !== "admin") {
+    if (!user || user.role !== "admin") {
       return res.status(403).json({ message: "Access denied. Admins only." });
     }
 
-    // Reset password and clear OTP fields
+    // Check code using Twilio Verify
+    const verifyResult = await checkVerifyCode(phoneNumber, otp);
+
+    if (verifyResult.status !== "approved") {
+        return res.status(400).json({ message: "Invalid or expired verification code" });
+    }
+
+    // Reset password and clear any existing OTP fields from DB
     user.password = password;
     user.confirmPassword = password;
     user.otp = undefined;
@@ -266,6 +260,7 @@ exports.adminResetPassword = async (req, res) => {
   }
 };
 
+
 /**
  * @desc    Get all users
  * @route   GET /api/admin/users
@@ -273,9 +268,11 @@ exports.adminResetPassword = async (req, res) => {
  */
 exports.getAllUsers = async (req, res) => {
   try {
-    const users = await User.find({ role: "user" }).sort({ createdAt: -1 }).select(
-      "-password -confirmPassword -refreshTokens -resetPasswordToken -resetPasswordExpiry",
-    );
+    const users = await User.find({ role: "user" })
+      .sort({ createdAt: -1 })
+      .select(
+        "-password -confirmPassword -refreshTokens -resetPasswordToken -resetPasswordExpiry",
+      );
     res.status(200).json({ success: true, count: users.length, users });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -290,15 +287,16 @@ exports.getAllUsers = async (req, res) => {
 exports.deleteUser = async (req, res) => {
   try {
     const user = await User.findById(req.params.id);
-    
+
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
 
     // Protection: Prevent deleting admins or superadmins through this route
     if (user.role !== "user") {
-      return res.status(403).json({ 
-        message: "Access denied. Cannot delete Administrators from the standard user route." 
+      return res.status(403).json({
+        message:
+          "Access denied. Cannot delete Administrators from the standard user route.",
       });
     }
 

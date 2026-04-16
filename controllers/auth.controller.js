@@ -144,7 +144,7 @@ exports.login = async (req, res) => {
 
     user.lastLogin = Date.now();
     // No need to save here, sendTokenResponse will save the user document
-    
+
     await sendTokenResponse(user, 200, res);
   } catch (error) {
     console.error("LOGIN ERROR:", error);

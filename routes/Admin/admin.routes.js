@@ -73,7 +73,10 @@ router.put(
   "/reset-password",
   [
     check("phoneNumber", "Please include a valid phone number").not().isEmpty(),
-    check("otp", "Please include a valid 6-digit OTP").isLength({ min: 6, max: 6 }),
+    check("otp", "Please include a valid 6-digit OTP").isLength({
+      min: 6,
+      max: 6,
+    }),
     check(
       "password",
       "Please enter a password with 6 or more characters",
