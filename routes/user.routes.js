@@ -9,8 +9,6 @@ const {
   logout,
   forgotPassword,
   resetPassword,
-  forgotPasswordOTP,
-  resetPasswordOTP,
   getMe,
   updateMe,
 } = require("../controllers/auth.controller");
@@ -22,8 +20,10 @@ const { authLimiter } = require("../middleware/rateLimiter");
 const validate = (req, res, next) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
-    return res.status(400).json({ errors: errors.array() });
+    const errorMessages = errors.array().map((err) => err.msg).join(". ");
+    return res.status(400).json({ message: errorMessages });
   }
+
   next();
 };
 
@@ -81,22 +81,29 @@ router.post("/refresh-token", refreshToken);
 router.post("/logout", protect, logout);
 
 /**
- * @desc Forgot password
+ * @desc Forgot password (SMS OTP)
  */
 router.post(
   "/forgot-password",
   authLimiter,
-  [check("email", "Please include a valid email").isEmail().normalizeEmail()],
+  [
+    check("phoneNumber", "Please include a valid phone number")
+      .not()
+      .isEmpty()
+      .trim(),
+  ],
   validate,
   forgotPassword,
 );
 
 /**
- * @desc Reset password
+ * @desc Reset password (SMS OTP)
  */
 router.put(
-  "/reset-password/:resettoken",
+  "/reset-password",
   [
+    check("phoneNumber", "Phone number is required").not().isEmpty(),
+    check("otp", "Verification code is required").not().isEmpty(),
     check(
       "password",
       "Please enter a password with 6 or more characters",
@@ -104,34 +111,6 @@ router.put(
   ],
   validate,
   resetPassword,
-);
-
-/**
- * @desc Forgot password (Reset Code)
- */
-router.post(
-  "/forgot-password-code",
-  authLimiter,
-  [check("email", "Please include a valid email").isEmail().normalizeEmail()],
-  validate,
-  forgotPasswordOTP,
-);
-
-/**
- * @desc Reset password (Reset Code)
- */
-router.put(
-  "/reset-password-code",
-  [
-    check("email", "Please include a valid email").isEmail().normalizeEmail(),
-    check("otp", "Reset code is required").not().isEmpty(),
-    check(
-      "password",
-      "Please enter a password with 6 or more characters",
-    ).isLength({ min: 6 }),
-  ],
-  validate,
-  resetPasswordOTP,
 );
 
 /**

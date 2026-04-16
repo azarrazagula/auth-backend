@@ -1,12 +1,13 @@
 const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
-const sendEmail = require("../utils/sendEmail");
 const {
   generateAccessToken,
   generateRefreshToken,
 } = require("../utils/generateToken");
+const { sendVerifyCode, checkVerifyCode } = require("../utils/sendSms");
 const generateOtp = require("../utils/generateOtp");
+
 
 
 /**
@@ -240,66 +241,37 @@ exports.logout = async (req, res) => {
 
 /**
  * @desc    Forgot password
- * @route   POST /api/auth/forgot-password
+ * @route   POST /api/user/forgot-password
  * @access  Public
  */
 exports.forgotPassword = async (req, res) => {
   try {
-    const { email } = req.body;
-    const user = await User.findOne({ email });
+    const { phoneNumber } = req.body;
+    console.log(`[User Recovery] Initiating Twilio Verify for: ${phoneNumber}`);
 
+    // Standard users only
+    const user = await User.findOne({ phoneNumber, role: "user" });
     if (!user) {
-      return res
-        .status(404)
-        .json({ message: "There is no user with that email" });
+      return res.status(404).json({ message: "No user found with that phone number" });
     }
 
-    // Generate reset token
-    const resetToken = crypto.randomBytes(20).toString("hex");
-
-    // Hash token and set to resetPasswordToken field
-    user.resetPasswordToken = crypto
-      .createHash("sha256")
-      .update(resetToken)
-      .digest("hex");
-
-    user.resetPasswordExpiry = Date.now() + 10 * 60 * 1000; // 10 minutes
-    await user.save({ validateBeforeSave: false });
-
-    // Create reset URL
-    const resetUrl = `${process.env.CLIENT_URL}/reset-password/${resetToken}`;
-
-    const message = `
-      <h1>Password Reset</h1>
-      <p>You requested a password reset. Please click the link below to set a new password:</p>
-      <a href="${resetUrl}" clicktracking="off">${resetUrl}</a>
-      <p>This link is valid for 10 minutes.</p>
-    `;
-
     try {
-      const emailResult = await sendEmail({
-        to: user.email,
-        subject: "Password Reset Request",
-        html: message,
-      });
-
+      const result = await sendVerifyCode(phoneNumber);
+      
       res.status(200).json({
         success: true,
-        message: "Email sent",
-        resetToken,
-        previewUrl: emailResult.previewUrl,
+        message: "A verification code has been sent to your mobile device.",
+        mock: result.mock || false
       });
-    } catch (error) {
-      console.error("Forgot password email error:", error);
-      user.resetPasswordToken = undefined;
-      user.resetPasswordExpiry = undefined;
-      await user.save({ validateBeforeSave: false });
-      return res.status(500).json({ message: "Email could not be sent" });
+    } catch (err) {
+      console.error("USER FORGOT PASSWORD VERIFY ERROR:", err.message);
+      return res.status(500).json({ message: "Error sending verification code." });
     }
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
+
 
 /**
  * @desc    Reset password
@@ -308,130 +280,37 @@ exports.forgotPassword = async (req, res) => {
  */
 exports.resetPassword = async (req, res) => {
   try {
-    const { password } = req.body;
+    const { phoneNumber, otp, password } = req.body;
+    console.log(`[User Recovery] Attempting reset for ${phoneNumber} with code ${otp}`);
 
-    // Get hashed token
-    const resetPasswordToken = crypto
-      .createHash("sha256")
-      .update(req.params.resettoken)
-      .digest("hex");
-
-    const user = await User.findOne({
-      resetPasswordToken,
-      resetPasswordExpiry: { $gt: Date.now() },
-    });
+    const user = await User.findOne({ phoneNumber, role: "user" });
 
     if (!user) {
-      return res.status(400).json({ message: "Invalid or expired token" });
+      console.warn(`[User Recovery] User not found for phone: ${phoneNumber}`);
+      return res.status(404).json({ message: "User not found" });
     }
 
-    user.password = password;
-    user.confirmPassword = password; // Ensure we satisfy Mongoose validation for confirmPassword
-    user.resetPasswordToken = undefined;
-    user.resetPasswordExpiry = undefined;
-
-    // Invalidate all existing refresh tokens so they need to log in again on all devices
-    user.refreshTokens = [];
-
-    await user.save();
-
-    res.status(200).json({
-      success: true,
-      message: "Password updated successfully. Please log in.",
-    });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
-
-/**
- * @desc    Forgot password (OTP Code)
- * @route   POST /api/auth/forgot-password-code
- * @access  Public
- */
-exports.forgotPasswordOTP = async (req, res) => {
-  try {
-    const { email } = req.body;
-    const user = await User.findOne({ email });
-
-    if (!user) {
-      return res
-        .status(404)
-        .json({ message: "There is no user with that email" });
-    }
-
-    // Generate 6-digit OTP
-    const { otp, otpExpiry } = generateOtp();
-
-    // Save to user (don't validate before save)
-    user.otp = otp;
-    user.otpExpiry = otpExpiry;
-    await user.save({ validateBeforeSave: false });
-
-    // Send OTP via email using premium template
-    const message = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 10px;">
-        <h1 style="color: #333; text-align: center;">Account Password Reset Request</h1>
-        <p style="color: #555; font-size: 16px; line-height: 1.5;">You have requested to reset your password. Please use the One-Time Password (OTP) below to complete the process.</p>
-        <div style="background-color: #f4f4f4; padding: 15px; text-align: center; border-radius: 8px; margin: 20px 0;">
-          <span style="font-size: 32px; font-weight: bold; letter-spacing: 5px; color: #2c3e50;">${otp}</span>
-        </div>
-        <p style="color: #777; font-size: 14px; text-align: center;">This OTP is valid for 10 minutes. If you did not make this request, please ignore this email.</p>
-        <hr style="border: 0; border-top: 1px solid #eee; margin: 30px 0;">
-        <p style="color: #999; font-size: 12px; text-align: center;">Secure Auth System &bull; Safe Space</p>
-      </div>
-    `;
-
+    // Check code using Twilio Verify
     try {
-      await sendEmail({
-        to: user.email,
-        subject: "Safe Space Auth - Password Reset OTP",
-        html: message,
-      });
+      const verifyResult = await checkVerifyCode(phoneNumber, otp);
+      console.log(`[User Recovery] Twilio verify status: ${verifyResult.status}`);
 
-      res.status(200).json({
-        success: true,
-        message: "A 6-digit OTP has been sent to your email address.",
-      });
-    } catch (err) {
-      console.error("USER FORGOT PASSWORD EMAIL ERROR:", err.message);
-
-      // Cleanup on fail
-      user.otp = undefined;
-      user.otpExpiry = undefined;
-      await user.save({ validateBeforeSave: false });
-
-      return res
-        .status(500)
-        .json({ message: "Error sending password reset email." });
-    }
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
-
-/**
- * @desc    Reset password via OTP Code
- * @route   PUT /api/auth/reset-password-code
- * @access  Public
- */
-exports.resetPasswordOTP = async (req, res) => {
-  try {
-    const { email, otp, password } = req.body;
-
-    const user = await User.findOne({
-      email,
-      otp,
-      otpExpiry: { $gt: Date.now() },
-    }).select("+otp +otpExpiry +refreshTokens");
-
-    if (!user) {
-      return res.status(400).json({ message: "Invalid or expired reset code" });
+      if (verifyResult.status !== "approved") {
+          return res.status(400).json({ 
+            message: "Invalid or expired verification code",
+            details: verifyResult.message || "Twilio did not approve this code"
+          });
+      }
+    } catch (verifyError) {
+      console.error("[User Recovery] Twilio API connection error:", verifyError.message);
+      return res.status(500).json({ message: "Security service error. Please try again later." });
     }
 
-    // Reset password and clear OTP fields
+
     user.password = password;
     user.confirmPassword = password;
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpiry = undefined;
     user.otp = undefined;
     user.otpExpiry = undefined;
 
@@ -448,6 +327,9 @@ exports.resetPasswordOTP = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+
+
 
 /**
  * @desc    Get current logged in user
