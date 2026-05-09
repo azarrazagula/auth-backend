@@ -1,6 +1,6 @@
-# DUMA Backend - Secure Auth & Management API
+# Auth Backend - Secure Auth & Management API
 
-The robust Node.js/Express backend powering the DUMA Admin Panel. This API handles authentication, user management, product catalogs, and payment gateway integrations.
+The robust Node.js/Express backend powering the Food App Admin Panel. This API handles authentication, user management, food catalogs, and payment gateway integrations.
 
 [![Status](https://img.shields.io/badge/Status-Complete-brightgreen)](#)
 [![Node](https://img.shields.io/badge/Node.js-18+-6DA55F)](#)
@@ -11,26 +11,27 @@ The robust Node.js/Express backend powering the DUMA Admin Panel. This API handl
 
 ## 🛠️ Key Features
 
-- **Robust Authentication**: JWT-based auth with secure cookie handling and bcrypt password hashing.
-- **Role-Based Access Control (RBAC)**: Distinct permissions for Users, Admins, and SuperAdmins.
-- **Payment Integration**: Seamless **Razorpay** gateway integration for processing transactions.
-- **Image Management**: Integrated with **Cloudinary** for scalable, persistent image hosting.
-- **Security Middleware**: Implements `helmet`, `cors`, `express-rate-limit`, and `express-validator` for API hardening.
-- **Admin Utilities**: Built-in scripts for superadmin verification and administrator account creation.
+- **Robust Authentication**: Dual-token JWT system (Access & Refresh) with secure cookie handling.
+- **Role-Based Access Control (RBAC)**: Specific logic for Users, Admins, and SuperAdmins.
+- **Service Integrations**:
+  - **Razorpay**: Secure payment gateway for processing transactions.
+  - **SendGrid**: Email services for notifications and account verification.
+  - **Twilio**: SMS and Verify services for identity management.
+- **Security Middleware**: Implements `helmet`, `cors`, `express-rate-limit`, and `express-validator`.
+- **Maintenance Tools**: Built-in scripts for superadmin verification and database seeding.
 
 ---
 
 ## 🚀 Step-by-Step Implementation
 
 1.  **API Architecture**: Designed a modular structure with separate Controllers, Routes, Models, and Middleware.
-2.  **Database Design**: Implemented Mongoose schemas for Users, Products, Categories, and Orders with proper indexing.
-3.  **Authentication Flow**: Developed custom JWT strategies and middleware (`auth.js`, `adminAuth.js`) to protect sensitive endpoints.
-4.  **Security Hardening**: Integrated rate limiting to prevent Brute Force attacks and Helmet for secure HTTP headers.
-5.  **Service Integration**:
-    - **Razorpay**: Set up order creation and verification endpoints.
-    - **Cloudinary**: Configured storage engines for product image uploads.
-    - **Nodemailer**: Integrated for automated email notifications and password resets.
-6.  **Administrative Tools**: Created CLI scripts (`make_admin.js`, `verify_superadmin.js`) for system maintenance.
+2.  **Database Design**: Implemented Mongoose schemas for Users, Food Items, Billing, and Payments.
+3.  **Authentication Flow**: Developed JWT strategies with high-security secret rotation and expiry management.
+4.  **Security Hardening**: Integrated rate limiting to prevent brute-force attacks and Helmet for secure HTTP headers.
+5.  **Multi-Service Integration**:
+    - **Payments**: Set up Razorpay order creation and verification.
+    - **Communications**: Integrated SendGrid for email and Twilio for secure messaging.
+6.  **Administrative Utilities**: Created CLI scripts for initializing superadmin accounts and resetting system states.
 
 ---
 
@@ -38,11 +39,10 @@ The robust Node.js/Express backend powering the DUMA Admin Panel. This API handl
 
 ```text
 ├── config/             # Database & Service configurations
-├── controllers/        # Business logic for routes
-├── models/             # Mongoose schemas (User, Product, etc.)
-├── routes/             # API endpoint definitions
-├── middleware/         # Auth, Validation & Security logic
-├── utils/              # Helper functions (email, cloudinary)
+├── controllers/        # Business logic (Auth, Payment, SuperAdmin)
+├── models/             # Mongoose schemas
+├── routes/             # API endpoint definitions (Admin, Food, User)
+├── middleware/         # Security, Auth & Rate limiting
 └── server.js           # Express application entry point
 ```
 
@@ -65,15 +65,16 @@ The robust Node.js/Express backend powering the DUMA Admin Panel. This API handl
    Create a `.env` file and fill in the following:
    ```env
    PORT=5001
-   MONGODB_URI=your_mongodb_atlas_uri
-   JWT_SECRET=your_jwt_secret
-   RAZORPAY_KEY_ID=your_key_id
-   RAZORPAY_KEY_SECRET=your_key_secret
-   CLOUDINARY_CLOUD_NAME=your_name
-   CLOUDINARY_API_KEY=your_key
-   CLOUDINARY_API_SECRET=your_secret
-   EMAIL_USER=your_email
-   EMAIL_PASS=your_app_password
+   MONGO_URI=your_mongodb_uri
+   JWT_ACCESS_SECRET=your_access_secret
+   JWT_REFRESH_SECRET=your_refresh_secret
+   SENDGRID_API_KEY=your_sendgrid_key
+   EMAIL_FROM=your_email
+   RAZORPAY_KEY_ID=your_razorpay_id
+   RAZORPAY_KEY_SECRET=your_razorpay_secret
+   TWILIO_ACCOUNT_SID=your_twilio_sid
+   TWILIO_API_KEY_SID=your_twilio_key_id
+   TWILIO_API_KEY_SECRET=your_twilio_key_secret
    ```
 
 4. **Run the server**:
@@ -90,6 +91,3 @@ The robust Node.js/Express backend powering the DUMA Admin Panel. This API handl
 ## 📄 License
 
 This project is licensed under the ISC License.
-
----
-*Built for the DUMA Ecosystem.*
